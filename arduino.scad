@@ -20,7 +20,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-include <pins.scad>
+use <pins.scad>
 
 //Constructs a roughed out arduino board
 //Current only USB, power and headers
@@ -206,21 +206,21 @@ BOARD = 0;        //Includes all components and PCB
 PCB = 1;          //Just the PCB
 COMPONENTS = 2;   //Just the components
 
-module boundingBox(boardType = UNO, offset = 0, height = 0, cornerRadius = 0, include = BOARD) {
+module boundingBox(boardType = UNO, offset = 0, height = 0, cornerRadius = 0, include = BOARD, extraright = 0, extraleft = 0, extraback = 0) {
   //What parts are included? Entire board, pcb or just components.
   pos = ([boardPosition(boardType), pcbPosition(boardType), componentsPosition(boardType)])[include];
   dim = ([boardDimensions(boardType), pcbDimensions(boardType), componentsDimensions(boardType)])[include];
 
   //Depending on if height is set position and dimensions will change
   position = [
-        pos[0] - offset, 
+        pos[0] - offset - extraleft, 
         pos[1] - offset, 
         (height == 0 ? pos[2] - offset : pos[2] )
         ];
 
   dimensions = [
-        dim[0] + offset * 2, 
-        dim[1] + offset * 2, 
+        dim[0] + offset * 2 + extraright + extraleft,, 
+        dim[1] + offset * 2 + extraback, 
         (height == 0 ? dim[2] + offset * 2 : height)
         ];
 
@@ -242,23 +242,23 @@ module standoffs(
   height = 10, 
   topRadius = mountingHoleRadius + 1, 
   bottomRadius =  mountingHoleRadius + 2, 
-  holeRadius = mountingHoleRadius,
-  mountType = TAPHOLE
+  holeRadius = mountingHoleRadius-0.4,
+  mountType = TAPHOLE,
+  Holes = 0 //0=Arduino, Otherwise: RelayHoles1, RelayHoles16, etc (hole location array!)
   ) {
-
-  holePlacement(boardType = boardType)
-    union() {
-      difference() {
-        cylinder(r1 = bottomRadius, r2 = topRadius, h = height, $fn=32);
-        if( mountType == TAPHOLE ) {
-          cylinder(r =  holeRadius, h = height * 4, center = true, $fn=32);
-        }
-      }
-      if( mountType == PIN ) {
-        translate([0, 0, height - 1])
-        pintack( h=pcbHeight + 3, r = holeRadius, lh=3, lt=1, bh=1, br=topRadius );
-      }
-    }  
+    if(Holes==0){ //board is an Arduino
+            holePlacement(boardType = boardType)
+                difference() {
+                    cylinder(r1 = bottomRadius, r2 = topRadius, h = height, $fn=32);
+                    cylinder(r =  holeRadius, h = height * 4, center = true, $fn=32);
+                    } //differnece
+        } //end if
+        else 
+            holePlacementextra(Holes)
+                difference() {
+                    cylinder(r1 = bottomRadius, r2 = topRadius, h = height, $fn=32);
+                    cylinder(r =  holeRadius, h = height * 4, center = true, $fn=32);
+                    } //differnece
 }
 
 //This is used for placing the mounting holes and for making standoffs
@@ -269,6 +269,15 @@ module holePlacement(boardType = UNO ) {
       children(0);
   }
 }
+
+//additional holes for other components
+module holePlacementextra(Holes) {
+	for(i = Holes) {
+		translate(i)
+			children(0);
+	}
+}
+
 
 //Places components on board
 //  compenent - the data set with a particular component (like boardHeaders)
